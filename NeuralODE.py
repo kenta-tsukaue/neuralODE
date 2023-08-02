@@ -42,7 +42,6 @@ class ODEBlock(nn.Module):
         x = AdjointFunc.apply(x,self.func,torch.tensor([0.0],device="cuda"),torch.tensor([1.0],device="cuda"),flat_parameters(self.func.parameters()))
         return x
 
-
 class Model(nn.Module):
     def __init__(self,num_classes=10):
         super(Model,self).__init__()

@@ -12,7 +12,7 @@ def odeint(z0,func,t0,t1,method="RK"):
     if method=="Euler":
         for _ in range(n_steps):
             f = func(z,t)
-            if type(f) is tuple:
+            if type(f) is tuple:#backwardの時はこっちを使う
                 for i in range(len(f)):
                     z[i] += dt*f[i]
             else:
@@ -77,22 +77,23 @@ class AdjointFunc(torch.autograd.Function):
         super(AdjointFunc,self).__init__()
 
     @staticmethod
-    def forward(ctx,z0,func,t0,t1,theta_flatten):
+    def forward(ctx,z0,func,t0,t1,theta_flatten): #staticmethodはclassの外の関数であるように振る舞う。よってselfは使わない。代わりにctxを使うそう。
         z1 = odeint(z0,func,t0,t1)
-        ctx.func = func
-        ctx.t0 = t0
-        ctx.t1 = t1
-        ctx.save_for_backward(z1.clone())
+        ctx.func = func #使用した関数を保存
+        ctx.t0 = t0 #使用したt0を保存
+        ctx.t1 = t1 #使用したt1を保存
+        ctx.save_for_backward(z1.clone())# z1を保存(backfowardのため)
         return z1
     
     @staticmethod
     def backward(ctx,dLdz1):
-        func = ctx.func
+        #ctxに保存された諸々の情報を最取得
+        func = ctx.func 
         t0 = ctx.t0
         t1 = ctx.t1
         z1= ctx.saved_tensors[0]
 
-        theta_list = list(func.parameters())
+        theta_list = list(func.parameters()) #パラメータθをリストとして取得
         
         s0 = [z1.clone(),dLdz1.clone()]
 
@@ -106,6 +107,8 @@ class AdjointFunc(torch.autograd.Function):
 
             f = func(z,t)
             f.backward(a)
+            #ここで引数としてaを渡すことによって
+            #a(t)∂f/∂zやa(t)∂f/∂θが各変数のgradに保存される
 
             adfdz = z.grad
             #z.grad.zero_()#不要
@@ -126,3 +129,5 @@ class AdjointFunc(torch.autograd.Function):
         dLdth0 = flat_parameters(dLdth0)
 
         return dLdz0,None,None,None,dLdth0
+    
+
